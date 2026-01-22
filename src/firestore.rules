@@ -1,0 +1,147 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- FUNÇÕES AUXILIARES ---
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      // Custom claims são a forma segura de verificar a role
+      return isSignedIn() && request.auth.token.role == 'Superadmin';
+    }
+
+    function isClientAdmin(clientId) {
+      return isSignedIn() && request.auth.token.clientId == clientId && request.auth.token.role == 'Admin';
+    }
+
+    function isClientMember(clientId) {
+      // CORREÇÃO: Utiliza a custom claim 'clientId' do token para validação, que é mais segura e eficiente.
+      return isSignedIn() && request.auth.token.clientId == clientId;
+    }
+    
+    function isVeterinarian(clientId) {
+      return isSignedIn() && request.auth.token.clientId == clientId && request.auth.token.role == 'veterinario';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- REGRAS DE COLEÇÕES ---
+
+    // Coleção para SuperAdmins (gerenciamento da plataforma)
+    match /users/{userId} {
+      // Apenas Superadmins podem gerenciar a coleção de clientes.
+      allow create: if request.resource.data.role == 'Superadmin';
+      
+      // PERMISSÃO CORRIGIDA:
+      // 1. Qualquer usuário autenticado pode ler SEU PRÓPRIO perfil para o AuthGuard funcionar.
+      // 2. Superadmins podem ler qualquer perfil.
+      allow read: if isSignedIn() && (isOwner(userId) || isSuperAdmin());
+      
+      // Apenas o próprio usuário ou Superadmin atualiza.
+      allow update: if isSignedIn() && (isOwner(userId) || isSuperAdmin());
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // Coleção de Clientes
+    match /clients/{clientId} {
+      // CORREÇÃO: Permite que um membro do cliente leia o documento do seu próprio cliente.
+      // Superadmins continuam com acesso total.
+      allow read: if isClientMember(clientId) || isSuperAdmin();
+      allow list, create, update, delete: if isSuperAdmin();
+
+      // Subcoleção de empresas de um cliente
+      match /companies/{companyId} {
+        // Membros do cliente podem ler e listar, admins e superadmins podem tudo
+        allow read, list: if isClientMember(clientId);
+        allow create, update, delete: if isClientAdmin(clientId) || isSuperAdmin();
+
+        match /costCenters/{costCenterId} {
+            allow read, list, create, update, delete: if isClientMember(clientId);
+        }
+      }
+       
+      // Subcoleção de usuários de um cliente
+      match /users/{userId} {
+        // PERMISSÃO CORRIGIDA:
+        // 1. Um usuário pode ler seu próprio documento.
+        // 2. Um Admin do cliente pode ler a lista de usuários e os detalhes de cada um.
+        allow read, list: if isOwner(userId) || isClientAdmin(clientId) || isSuperAdmin();
+        
+        // Admins do cliente ou Superadmins podem criar, atualizar e deletar
+        allow create, update, delete: if isClientAdmin(clientId) || isSuperAdmin();
+      }
+      
+      // Subcoleção de receitas de um cliente
+      match /revenues/{revenueId} {
+          allow read, write: if isClientMember(clientId);
+      }
+      
+      // Subcoleção de cotações de um cliente
+      match /quotes/{quoteId} {
+          allow read, write: if isClientMember(clientId);
+      }
+      
+      // Subcoleção de Ordens de Compra de um cliente
+      match /purchaseOrders/{purchaseOrderId} {
+        allow read, write: if isClientMember(clientId);
+      }
+
+      // Subcoleção de Veterinários de um cliente
+      match /veterinarians/{veterinarianId} {
+        allow read, list: if isClientMember(clientId);
+        allow create, update, delete: if isClientAdmin(clientId) || isSuperAdmin();
+      }
+
+      // Regra genérica para outras subcoleções (se houver)
+      match /bankAccounts/{docId=**} {
+          allow read, write: if isClientMember(clientId);
+      }
+      
+      // Subcoleção de Notas de Serviço (enviadas pelos veterinários)
+      match /serviceNotes/{noteId} {
+          allow create: if isVeterinarian(clientId);
+          allow read, list: if isClientMember(clientId); // Admins do cliente podem ver todas as notas
+          allow read: if request.auth.uid == resource.data.veterinarianId; // Veterinário pode ver suas próprias notas
+      }
+    }
+    
+    // Coleção de Funções (Roles)
+    match /roles/{roleId} {
+        // Apenas admins do cliente podem listar as funções do seu cliente
+        allow list: if isClientMember(request.query.filters.clientId.string_value);
+        // Regras para ler, atualizar e deletar funções existentes
+        allow read, update, delete: if isClientAdmin(resource.data.clientId) || isSuperAdmin();
+        // Regra específica para criar novas funções (CORRIGIDA)
+        allow create: if (request.auth.token.role == 'Admin' && request.auth.token.clientId == request.resource.data.clientId) || isSuperAdmin();
+    }
+    
+    // Coleção de Fornecedores
+    match /suppliers/{supplierId} {
+      // Membros do cliente podem listar os fornecedores do seu cliente
+      allow list: if isClientMember(request.query.filters.clientId.string_value);
+      // Membros podem ler dados de um fornecedor do seu cliente
+      allow read: if isClientMember(resource.data.clientId);
+      // Apenas admins ou superadmins podem criar
+      allow create: if isClientAdmin(request.resource.data.clientId) || isSuperAdmin();
+      // Updates são via Cloud Function, mas para consistência, se fosse client-side:
+      allow update: if isClientAdmin(resource.data.clientId) || isSuperAdmin();
+      // Delete precisa usar o `resource` existente
+      allow delete: if isClientAdmin(resource.data.clientId) || isSuperAdmin();
+    }
+    
+    // Regra global de Ordens de Compra removida, pois agora está dentro de /clients
+    
+    // Coleção de Despesas
+    match /expenses/{expenseId} {
+        allow list, read, write: if isClientMember(request.resource.data.clientId) || isClientMember(request.query.filters.clientId.string_value);
+    }
+  }
+}

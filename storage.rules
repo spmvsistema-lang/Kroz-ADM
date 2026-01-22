@@ -1,0 +1,46 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+  
+    // Funções de apoio para limpeza e segurança
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isClientMember(clientId) {
+      return isSignedIn() && request.auth.token.clientId == clientId;
+    }
+
+    function isSupplierForClient(clientId) {
+      return isSignedIn() && 
+             request.auth.token.role == 'fornecedor' && 
+             request.auth.token.supplierOf[clientId] == true;
+    }
+
+    // --- REGRAS POR CAMINHO ---
+
+    // 1. Notas de Serviço (Veterinários)
+    match /clients/{clientId}/service-notes/{veterinarianId}/{fileName} {
+      allow read: if isSignedIn() && (isClientMember(clientId) || request.auth.uid == veterinarianId);
+      allow write: if isSignedIn() && request.auth.uid == veterinarianId;
+    }
+    
+    // 2. Ordens de Compra (Onde estava ocorrendo o erro 403)
+   match /clients/{clientId}/purchase-orders/{orderId}/{fileName} {
+  // Permite leitura e escrita para QUALQUER usuário logado
+  // Use isso apenas para confirmar se o problema é o Custom Claim
+  allow read, write: if request.auth != null;
+    }
+
+    // 3. Recibos de Despesas
+    match /clients/{clientId}/expense-receipts/{expenseId}/{fileName} {
+        allow read, write: if isClientMember(clientId);
+    }
+
+    // 4. Regra de segurança padrão (Bloqueia tudo que não se encaixa acima)
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

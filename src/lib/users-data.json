@@ -1,0 +1,94 @@
+
+[
+  {
+    "id": "USR-001",
+    "name": "Ana Clara",
+    "email": "ana.clara@example.com",
+    "role": "Superadmin",
+    "status": "Ativo"
+  },
+  {
+    "id": "USR-002",
+    "name": "Bruno Costa",
+    "email": "bruno.costa@example.com",
+    "role": "Gestor",
+    "status": "Ativo"
+  },
+  {
+    "id": "USR-003",
+    "name": "Carlos Dias",
+    "email": "carlos.dias@example.com",
+    "role": "Compras",
+    "status": "Inativo"
+  },
+  {
+    "id": "USR-004",
+    "name": "Daniela Fernandes",
+    "email": "daniela.f@example.com",
+    "role": "Financeiro",
+    "status": "Ativo"
+  },
+  {
+    "id": "USR-005",
+    "name": "Eduardo Gomes",
+    "email": "eduardo.gomes@example.com",
+    "role": "Gestor",
+    "status": "Ativo"
+  },
+  {
+    "id": "USR-006",
+    "name": "Fernanda Lima",
+    "email": "fernanda.lima@example.com",
+    "role": "Compras",
+    "status": "Ativo"
+  },
+  {
+    "id": "USR-007",
+    "name": "Gabriel Martins",
+    "email": "gabriel.martins@example.com",
+    "role": "Financeiro",
+    "status": "Inativo"
+  },
+  {
+    "id": "USR-008",
+    "name": "Heloisa Nogueira",
+    "email": "heloisa.n@example.com",
+    "role": "Admin",
+    "status": "Ativo"
+  },
+  {
+    "id": "USR-009",
+    "name": "Igor Oliveira",
+    "email": "igor.oliveira@example.com",
+    "role": "Gestor",
+    "status": "Ativo"
+  },
+  {
+    "id": "USR-010",
+    "name": "Juliana Pereira",
+    "email": "juliana.p@example.com",
+    "role": "Compras",
+    "status": "Ativo"
+  },
+  {
+    "id": "USR-011",
+    "name": "Lucas Santos",
+    "email": "lucas.santos@example.com",
+    "role": "Estoque",
+    "status": "Ativo"
+  },
+  {
+    "id": "USR-012",
+    "name": "Mariana Almeida",
+    "email": "mariana.a@example.com",
+    "role": "Recepcionista",
+    "status": "Ativo"
+  },
+  {
+    "id": "USR-013",
+    "name": "Admin Monsters",
+    "email": "contato@monsters.com",
+    "role": "Admin",
+    "status": "Ativo"
+  }
+]

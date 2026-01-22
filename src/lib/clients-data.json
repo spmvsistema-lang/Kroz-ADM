@@ -1,0 +1,39 @@
+
+[
+  {
+    "id": "acme-inc",
+    "name": "Acme Inc.",
+    "contact": "contato@acme.com",
+    "plan": "Clinica",
+    "licenseActive": true,
+    "paymentVerified": true,
+    "licenseExpiration": "2025-07-31"
+  },
+  {
+    "id": "monsters-inc",
+    "name": "Monsters Inc.",
+    "contact": "contato@monsters.com",
+    "plan": "Administrativo",
+    "licenseActive": true,
+    "paymentVerified": false,
+    "licenseExpiration": "2024-08-15"
+  },
+  {
+    "id": "stark-industries",
+    "name": "Stark Industries",
+    "contact": "pepper.potts@stark.com",
+    "plan": "Clinica",
+    "licenseActive": true,
+    "paymentVerified": true,
+    "licenseExpiration": "2026-01-01"
+  },
+  {
+    "id": "wayne-enterprises",
+    "name": "Wayne Enterprises",
+    "contact": "lucius.fox@wayne.com",
+    "plan": "Administrativo",
+    "licenseActive": false,
+    "paymentVerified": false,
+    "licenseExpiration": "2024-05-20"
+  }
+]

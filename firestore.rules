@@ -1,0 +1,129 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- FUNÇÕES AUXILIARES ---
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.role == 'Superadmin';
+    }
+
+    function isClientAdmin(clientId) {
+      return isSignedIn() && request.auth.token.clientId == clientId && request.auth.token.role == 'Admin';
+    }
+
+    function isClientMember(clientId) {
+      return isSignedIn() && request.auth.token.clientId == clientId;
+    }
+    
+    function isVeterinarian(clientId) {
+      return isSignedIn() && request.auth.token.clientId == clientId && request.auth.token.role == 'veterinario';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isTheCorrectSupplierForDoc(clientId, supplierId) {
+        let supplierDoc = get(/databases/$(database)/documents/clients/$(clientId)/suppliers/$(supplierId));
+        return request.auth.token.role == 'fornecedor' && supplierDoc.data.authUid == request.auth.uid;
+    }
+    
+    function canApproveDocuments(clientId) {
+        return isClientMember(clientId) && (
+            request.auth.token.role == 'Admin' ||
+            request.auth.token.role == 'Financeiro' ||
+            request.auth.token.role == 'Compras'
+        );
+    }
+
+    // --- REGRAS DE COLEÇÕES ---
+
+    match /users/{userId} {
+      allow create: if request.resource.data.role == 'Superadmin';
+      allow read: if isSignedIn() && (isOwner(userId) || isSuperAdmin());
+      allow update: if isSignedIn() && (isOwner(userId) || isSuperAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    match /clients/{clientId} {
+      allow read: if isClientMember(clientId) || isSuperAdmin() || request.auth.token.role == 'fornecedor';
+      allow list, create, update, delete: if isSuperAdmin();
+
+      match /companies/{companyId} {
+        allow read, list: if isClientMember(clientId);
+        allow create, update, delete: if isClientAdmin(clientId) || isSuperAdmin();
+
+        match /costCenters/{costCenterId} {
+            allow read, list, create, update, delete: if isClientMember(clientId);
+        }
+      }
+       
+      match /users/{userId} {
+        allow read, list: if isOwner(userId) || isClientAdmin(clientId) || isSuperAdmin();
+        allow create, update, delete: if isClientAdmin(clientId) || isSuperAdmin();
+      }
+      
+      match /revenues/{revenueId} {
+          allow read, write: if isClientMember(clientId);
+      }
+      
+      match /quotes/{quoteId} {
+          allow read, write: if isClientMember(clientId);
+      }
+      
+      match /purchaseOrders/{purchaseOrderId} {
+        allow read, list: if isClientMember(clientId) || request.auth.token.role == 'fornecedor';
+        allow create: if isClientMember(clientId);
+        allow update: if canApproveDocuments(clientId) || 
+                       (isTheCorrectSupplierForDoc(clientId, resource.data.supplierId) &&
+                        resource.data.status == 'Aguardando Documentos' &&
+                        request.resource.data.status == 'Aguardando Aprovação');
+      }
+      
+       match /payments/{paymentId} {
+        allow read, write: if isClientMember(clientId);
+      }
+
+      match /veterinarians/{veterinarianId} {
+        allow read, list: if isClientMember(clientId);
+        allow create, update, delete: if isClientAdmin(clientId) || isSuperAdmin();
+      }
+
+      match /bankAccounts/{docId=**} {
+          allow read, write: if isClientMember(clientId);
+      }
+      
+      match /serviceNotes/{noteId} {
+          allow create: if isVeterinarian(clientId);
+          allow read, list: if isClientMember(clientId);
+          allow read: if request.auth.uid == resource.data.veterinarianId;
+      }
+
+      match /expenses/{expenseId} {
+        allow read, list, write: if isClientMember(clientId);
+      }
+
+      match /roles/{roleId} {
+        allow list: if isClientMember(clientId);
+        allow read, update, delete: if isClientAdmin(clientId) || isSuperAdmin();
+        allow create: if isClientAdmin(clientId) || isSuperAdmin();
+      }
+
+      match /suppliers/{supplierId} {
+        allow read, list: if isClientMember(clientId);
+        allow create, update, delete: if isClientAdmin(clientId) || isSuperAdmin();
+      }
+    }
+    
+    match /{path=**}/suppliers/{supplierId} {
+      allow read: if request.auth.token.role == 'fornecedor' && resource.data.authUid == request.auth.uid;
+    }
+  }
+}

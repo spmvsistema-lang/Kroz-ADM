@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+  
+    // Funções de apoio para limpeza e segurança
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isClientMember(clientId) {
+      return isSignedIn() && request.auth.token.clientId == clientId;
+    }
+
+    // --- REGRAS POR CAMINHO ---
+
+    // 1. Notas de Serviço (Veterinários)
+    match /clients/{clientId}/service-notes/{veterinarianId}/{fileName} {
+      allow read: if isSignedIn() && (isClientMember(clientId) || request.auth.uid == veterinarianId);
+      allow write: if isSignedIn() && request.auth.uid == veterinarianId;
+    }
+    
+    // 2. Ordens de Compra (NF-e e Boletos)
+    match /clients/{clientId}/purchase-orders/{orderId}/{fileName} {
+      // O usuário pode ler se for membro do cliente OU se o UID dele corresponder
+      // ao 'ownerUid' salvo nos metadados do arquivo durante o upload.
+      allow read: if isClientMember(clientId) || request.auth.uid == resource.metadata.ownerUid;
+
+      // O usuário só pode escrever se o UID dele for o mesmo que está sendo
+      // gravado nos metadados do novo arquivo. Isso garante que o uploader é o dono.
+      allow write: if request.auth.uid == request.resource.metadata.ownerUid;
+    }
+
+    // 3. Recibos de Despesas
+    match /clients/{clientId}/expense-receipts/{expenseId}/{fileName} {
+        allow read, write: if isClientMember(clientId);
+    }
+
+    // 4. Regra de segurança padrão (Bloqueia tudo que não se encaixa acima)
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
